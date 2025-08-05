@@ -3,11 +3,16 @@ name: 'Terraform'
 on:
   push:
     branches: [ main ]
-    paths-ignore:
-      - 'README.md'
-      - '.gitignore'
+    paths:
+      - '.github/**'
+      - 'notebooks/**'
+      - '**/*.tf'
   pull_request:
     branches: [ main ]
+    paths:
+      - '.github/**'
+      - 'notebooks/**'
+      - '**/*.tf'
   workflow_dispatch:
 
 defaults:
