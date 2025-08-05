@@ -46,14 +46,6 @@ jobs:
       with:
         terraform_version: '1.5.7'
 
-    - name: Setup Terraform Cache
-      uses: actions/cache@v3
-      with:
-        path: .terraform/terraform.tfstate
-        key: ${{ runner.os }}-tfstate-${{ hashFiles('**/*.tf') }}
-        restore-keys: |
-          ${{ runner.os }}-tfstate-
-
     - name: Terraform Init
       run: terraform init
 
@@ -66,43 +58,26 @@ jobs:
     - name: Terraform Plan
       if: github.event_name == 'pull_request'
       run: |
-        # Create .terraform directory if it doesn't exist
-        mkdir -p .terraform
-        
-        # Check if we have a cached state file
-        if [ -f .terraform/terraform.tfstate ]; then
-          echo "Using cached Terraform state"
-          cp .terraform/terraform.tfstate terraform.tfstate 2>/dev/null || true
-        fi
-        
+        # Initialize Terraform
         terraform init
+        
+        # Run Terraform plan
         terraform plan -no-color -input=false \
           -var="databricks_host=${{ env.TF_VAR_databricks_host }}" \
-          -var="databricks_token=${{ env.TF_VAR_databricks_token }}"
-          
-        # Save the state file back to the cache directory
-        if [ -f terraform.tfstate ]; then
-          cp terraform.tfstate .terraform/terraform.tfstate
-        fi
+          -var="databricks_token=${{ env.TF_VAR_databricks_token }}" \
+          -out=tfplan
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
-        # Create .terraform directory if it doesn't exist
-        mkdir -p .terraform
-        
-        # Check if we have a cached state file
-        if [ -f .terraform/terraform.tfstate ]; then
-          echo "Using cached Terraform state"
-          cp .terraform/terraform.tfstate terraform.tfstate 2>/dev/null || true
-        fi
-        
+        # Initialize Terraform
         terraform init
-        terraform apply -auto-approve -input=false \
-          -var="databricks_host=${{ env.TF_VAR_databricks_host }}" \
-          -var="databricks_token=${{ env.TF_VAR_databricks_token }}"
-          
-        # Save the state file back to the cache directory
-        if [ -f terraform.tfstate ]; then
-          cp terraform.tfstate .terraform/terraform.tfstate
+        
+        # Apply the Terraform plan if it exists, otherwise run apply directly
+        if [ -f tfplan ]; then
+          terraform apply -auto-approve -input=false tfplan
+        else
+          terraform apply -auto-approve -input=false \
+            -var="databricks_host=${{ env.TF_VAR_databricks_host }}" \
+            -var="databricks_token=${{ env.TF_VAR_databricks_token }}"
         fi
