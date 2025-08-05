@@ -1,9 +1,9 @@
 # Local .terraform directories
 **/.terraform/*
 
-# .tfstate files
-*.tfstate
+# .tfstate files (except root terraform.tfstate which we want to track)
 *.tfstate.*
+!terraform.tfstate  # Allow tracking the root state file
 
 # Crash log files
 crash.log
