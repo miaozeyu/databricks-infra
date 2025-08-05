@@ -1,0 +1,64 @@
+name: 'Terraform'
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+    working-directory: .
+
+env:
+  TF_INPUT: false
+  TF_IN_AUTOMATION: true
+  TF_VAR_databricks_host: ${{ secrets.DATABRICKS_HOST }}
+  TF_VAR_databricks_token: ${{ secrets.DATABRICKS_TOKEN }}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: '1.5.7'
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Format
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Validate
+      run: terraform validate -no-color
+
+    - name: Terraform Plan
+      if: github.event_name == 'pull_request'
+      run: |
+        terraform plan -no-color -input=false \
+          -var="databricks_host=${{ env.TF_VAR_databricks_host }}" \
+          -var="databricks_token=${{ env.TF_VAR_databricks_token }}"
+
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        terraform apply -auto-approve -input=false \
+          -var="databricks_host=${{ env.TF_VAR_databricks_host }}" \
+          -var="databricks_token=${{ env.TF_VAR_databricks_token }}"
